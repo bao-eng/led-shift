@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 
+#define EMBEDDED_CLI_IMPL
+#include "embedded_cli.h"
+
 #define ds1_pin 28
 #define shcp1_pin 27
 #define stcp1_pin 26
@@ -52,6 +55,10 @@ void shift_word(int32_t value){
     gpio_put(stcp0_pin, true);
 }
 
+static void writeCharToCli(EmbeddedCli *embeddedCli, char c) {
+    putchar_raw(c);
+}
+
 int main() {
     // Initialize LED pin
     gpio_init(ds1_pin);
@@ -68,6 +75,15 @@ int main() {
     gpio_init(stcp0_pin);
     gpio_set_dir(stcp0_pin, GPIO_OUT);
 
+    EmbeddedCliConfig *config = embeddedCliDefaultConfig();
+    config->maxBindingCount = 16;
+    // EmbeddedCli *cli = embeddedCliNew(config);
+    EmbeddedCli *cli = embeddedCliNewDefault();
+    void writeChar(EmbeddedCli *embeddedCli, char c);
+    cli->writeChar = writeCharToCli;
+    char c = (char)getchar_timeout_us(100);
+    embeddedCliReceiveChar(cli, c);
+
     // Initialize chosen serial port
     stdio_init_all();
 
@@ -76,6 +92,10 @@ int main() {
     size_t count1 = 0;
     shift_led(true);
     while (true) {
+        char c = (char)getchar_timeout_us(10);
+        embeddedCliReceiveChar(cli, c);
+        embeddedCliProcess(cli);
+
         if(count1==100){
             shift_led(true);
             count1=0;
